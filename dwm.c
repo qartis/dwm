@@ -147,6 +147,7 @@ static int applysizehints(Client *c, int *x, int *y, int *w, int *h, int interac
 static void arrange(Monitor *m);
 static void arrangemon(Monitor *m);
 static void attach(Client *c);
+static void attachbelow(Client *c);
 static void attachstack(Client *c);
 static void buttonpress(XEvent *e);
 static void checkotherwm(void);
@@ -186,6 +187,7 @@ static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
 static Client *nexttiled(Client *c);
 static void pop(Client *);
+static void pushdown(const Arg *arg);
 static void propertynotify(XEvent *e);
 static void quit(const Arg *arg);
 static Monitor *recttomon(int x, int y, int w, int h);
@@ -272,7 +274,7 @@ static Window root, wmcheckwin;
 /* configuration, allows nested code to access above variables */
 #include "config.h"
 
-static unsigned int scratchtag = 1 << LENGTH(tags);
+static unsigned int scratchtag = 1 << (LENGTH(tags) - 1);
 
 /* compile-time check if all tags fit into an unsigned int bit array. */
 struct NumTags { char limitexceeded[LENGTH(tags) > 31 ? -1 : 1]; };
@@ -407,6 +409,18 @@ attach(Client *c)
 {
 	c->next = c->mon->clients;
 	c->mon->clients = c;
+}
+
+void
+attachbelow(Client *c)
+{
+	Client *at = c->mon->sel;
+	if (at == NULL || at->isfloating) {
+		attach(c);
+		return;
+	}
+	c->next = at->next;
+	at->next = c;
 }
 
 void
@@ -1061,7 +1075,7 @@ manage(Window w, XWindowAttributes *wa)
 
 	if (!strcmp(c->name, scratchpadname)) {
 		c->mon->tagset[c->mon->seltags] |= c->tags = scratchtag;
-		c->isfloating = True;
+		c->isfloating = 1;
 		c->x = c->mon->wx + (c->mon->ww / 2 - WIDTH(c) / 2);
 		c->y = c->mon->wy + (c->mon->wh / 2 - HEIGHT(c) / 2);
 	}
@@ -1079,7 +1093,7 @@ manage(Window w, XWindowAttributes *wa)
 		c->isfloating = c->oldstate = trans != None || c->isfixed;
 	if (c->isfloating)
 		XRaiseWindow(dpy, c->win);
-	attach(c);
+	attachbelow(c);
 	attachstack(c);
 	XChangeProperty(dpy, root, netatom[NetClientList], XA_WINDOW, 32, PropModeAppend,
 		(unsigned char *) &(c->win), 1);
@@ -1223,6 +1237,21 @@ pop(Client *c)
 	attach(c);
 	focus(c);
 	arrange(c->mon);
+}
+
+void
+pushdown(const Arg *arg) {
+	Client *sel = selmon->sel, *c;
+
+	if (!sel || sel->isfloating || sel == nexttiled(selmon->clients))
+		return;
+	if ((c = nexttiled(sel->next))) {
+		detach(sel);
+		sel->next = c->next;
+		c->next = sel;
+	}
+	focus(sel);
+	arrange(selmon);
 }
 
 void
