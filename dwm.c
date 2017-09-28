@@ -148,6 +148,7 @@ static void arrange(Monitor *m);
 static void arrangemon(Monitor *m);
 static void attach(Client *c);
 static void attachbelow(Client *c);
+static void attachbottom(Client *c);
 static void attachstack(Client *c);
 static void buttonpress(XEvent *e);
 static void checkotherwm(void);
@@ -254,11 +255,13 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 	[ConfigureRequest] = configurerequest,
 	[ConfigureNotify] = configurenotify,
 	[DestroyNotify] = destroynotify,
+	[EnterNotify] = enternotify,
 	[Expose] = expose,
 	[FocusIn] = focusin,
 	[KeyPress] = keypress,
 	[MappingNotify] = mappingnotify,
 	[MapRequest] = maprequest,
+	[MotionNotify] = motionnotify,
 	[PropertyNotify] = propertynotify,
 	[UnmapNotify] = unmapnotify
 };
@@ -416,9 +419,24 @@ attachbelow(Client *c)
 {
 	Client *at = c->mon->sel;
 	if (at == NULL || at->isfloating) {
+		attachbottom(c);
+		return;
+	}
+	c->next = at->next;
+	at->next = c;
+}
+
+void
+attachbottom(Client *c)
+{
+	Client *at = c->mon->sel;
+	if (at == NULL) {
 		attach(c);
 		return;
 	}
+	while (at->next && at->next != c->mon->clients) {
+	  at = at->next;
+  }
 	c->next = at->next;
 	at->next = c;
 }
@@ -441,8 +459,7 @@ buttonpress(XEvent *e)
 
 	click = ClkRootWin;
 	/* focus monitor if necessary */
-	if ((m = wintomon(ev->window)) && m != selmon
-	    && (focusonwheel || (ev->button != Button4 && ev->button != Button5))) {
+	if ((m = wintomon(ev->window)) && m != selmon) {
 		unfocus(selmon->sel, 1);
 		selmon = m;
 		focus(NULL);
@@ -462,8 +479,7 @@ buttonpress(XEvent *e)
 		else
 			click = ClkWinTitle;
 	} else if ((c = wintoclient(ev->window))) {
-		if (focusonwheel || (ev->button != Button4 && ev->button != Button5))
-			focus(c);
+		focus(c);
 		restack(selmon);
 		XAllowEvents(dpy, ReplayPointer, CurrentTime);
 		click = ClkClientWin;
@@ -965,7 +981,7 @@ grabbuttons(Client *c, int focused)
 					XGrabButton(dpy, buttons[i].button,
 						buttons[i].mask | modifiers[j],
 						c->win, False, BUTTONMASK,
-						GrabModeSync, GrabModeSync, None, None);
+						GrabModeAsync, GrabModeSync, None, None);
 	}
 }
 
@@ -1711,9 +1727,19 @@ tag(const Arg *arg)
 void
 tagmon(const Arg *arg)
 {
+	int fullscreen = 0;
+	Client *c;
+
 	if (!selmon->sel || !mons->next)
 		return;
+	c = selmon->sel;
+  if (c->isfullscreen) {
+    setfullscreen(c, 0);
+    fullscreen = 1;
+  }
 	sendmon(selmon->sel, dirtomon(arg->i));
+	if (fullscreen)
+    setfullscreen(c, 1);
 }
 
 void
