@@ -42,6 +42,7 @@ static const Layout layouts[] = {
 	{ "[]=",      tile },    /* first entry is default */
 	{ "><>",      NULL },    /* no layout function means floating behavior */
 	{ "[M]",      monocle },
+	{ "|||",      col },
 };
 
 /* key definitions */
@@ -61,7 +62,7 @@ static const char *dmenucmd[] = { "dmenu_run", NULL };
 static const char *termcmd[]  = { "st", "-e", "tmx2", NULL };
 static const char scratchpadname[] = "scratchpad";
 static const char *scratchpadcmd[] = { "st", "-e", "tmux", "-t", scratchpadname, "-g", "120x34", NULL };
-static const char *lockcmd[] = { "/usr/local/google/home/abf/bin/lock", NULL };
+static const char *lockcmd[] = { "lock", NULL };
 
 static const char *voldncmd[] = { "pulsemixer", "--id", "1", "--change-volume", "-8", NULL };
 static const char *volupcmd[] = { "pulsemixer", "--id", "1", "--change-volume", "+8", NULL };
@@ -85,9 +86,9 @@ static Key keys[] = {
 	{ MODKEY,                       XK_h,      setmfact,       {.f = -0.05} },
 	{ MODKEY,                       XK_l,      setmfact,       {.f = +0.05} },
 	{ MODKEY,                       XK_f,      togglefullscreen, {0} },
-/*	{ MODKEY,                       XK_Tab,    view,           {0} }, */
 	{ MODKEY|ShiftMask,             XK_c,      killclient,     {0} },
 	{ MODKEY,                       XK_t,      setlayout,      {.v = &layouts[0]} },
+	{ MODKEY,                       XK_backslash, setlayout,   {.v = &layouts[3]} },
 	{ MODKEY,                       XK_m,      focusmaster,    {0} },
 	{ MODKEY,                       XK_space,  zoom,           {0} },
 	{ MODKEY|ShiftMask,             XK_space,  togglefloating, {0} },
